@@ -22,60 +22,7 @@
                 <div class="layui-col-md12">
                     <div class="layui-card">
                         <div class="layui-card-body">
-                            <div class="layui-carousel z-admin-carousel z-admin-backlog" lay-anim="" lay-indicator="inside" lay-arrow="none" style="width: 100%; height: 90px;">
-                                <div carousel-item="">
-                                    <ul class="layui-row layui-col-space10 layui-this">
-                                        <li class="layui-col-xs2">
-                                            <a href="#" onclick="openTab('用户管理', '/user/index')" class="z-admin-backlog-body">
-                                                <h3>用户数</h3>
-                                                <p>
-                                                    <cite th:text="${userCount}"></cite>
-                                                </p>
-                                            </a>
-                                        </li>
-                                        <li class="layui-col-xs2">
-                                            <a href="#" onclick="openTab('角色管理', '/role/index')" class="z-admin-backlog-body">
-                                                <h3>角色数</h3>
-                                                <p>
-                                                    <cite th:text="${roleCount}"></cite>
-                                                </p>
-                                            </a>
-                                        </li>
-                                        <li class="layui-col-xs2">
-                                            <a href="#" onclick="openTab('菜单管理', '/menu/index')" class="z-admin-backlog-body">
-                                                <h3>菜单数</h3>
-                                                <p>
-                                                    <cite th:text="${menuCount}"></cite>
-                                                </p>
-                                            </a>
-                                        </li>
-                                        <li class="layui-col-xs2">
-                                            <a href="#" onclick="openTab('登录日志', '/log/login/index')" class="z-admin-backlog-body">
-                                                <h3>登录日志</h3>
-                                                <p>
-                                                    <cite th:text="${loginLogCount}"></cite>
-                                                </p>
-                                            </a>
-                                        </li>
-                                        <li class="layui-col-xs2">
-                                            <a href="#" onclick="openTab('操作日志', '/log/sys/index')" class="z-admin-backlog-body">
-                                                <h3>操作日志</h3>
-                                                <p>
-                                                    <cite th:text="${sysLogCount}"></cite>
-                                                </p>
-                                            </a>
-                                        </li>
-                                        <li class="layui-col-xs2">
-                                            <a href="#" onclick="openTab('在线人数', '/online/index')" class="z-admin-backlog-body">
-                                                <h3>在线人数</h3>
-                                                <p>
-                                                    <cite th:text="${userOnlineCount}"></cite>
-                                                </p>
-                                            </a>
-                                        </li>
-                                    </ul>
-                                </div>
-                            </div>
+                            <div id="statsChart" style="width: 100%; height: 350px;"></div>
                         </div>
                     </div>
                 </div>
@@ -97,9 +44,7 @@
     <script type="application/javascript">
         layui.use('element', function(){
             layui.$("#main").css("width", (window.innerWidth - 100) +'px');
-            // 基于准备好的dom，初始化echarts实例
             var myChart = echarts.init(document.getElementById('main'));
-            // 指定图表的配置项和数据
             option = {
                 title: {
                     text: '近七天登陆次数统计图',
@@ -107,8 +52,8 @@
                 },
                 tooltip: {
                     trigger: 'axis',
-                    axisPointer: { // 坐标轴指示器，坐标轴触发有效
-                        type: 'none' // 默认为直线，可选为：'line' | 'shadow'
+                    axisPointer: {
+                        type: 'none'
                     }
                 },
                 xAxis: {
@@ -125,10 +70,132 @@
             };
             layui.$.get('/weekLoginCount', function (data) {
                 option.series[0].data = data;
-                // 使用刚指定的配置项和数据显示图表。
                 myChart.setOption(option);
             });
+
+            initStatsChart();
         });
+
+        function initStatsChart() {
+            var statsChart = echarts.init(document.getElementById('statsChart'));
+            var statsData = [
+                { name: '用户数', value: [[${userCount != null ? userCount : 0}]], url: '/user/index', tabName: '用户管理' },
+                { name: '角色数', value: [[${roleCount != null ? roleCount : 0}]], url: '/role/index', tabName: '角色管理' },
+                { name: '菜单树', value: [[${menuCount != null ? menuCount : 0}]], url: '/menu/index', tabName: '菜单管理' },
+                { name: '登录日志', value: [[${loginLogCount != null ? loginLogCount : 0}]], url: '/log/login/index', tabName: '登录日志' },
+                { name: '操作日志', value: [[${sysLogCount != null ? sysLogCount : 0}]], url: '/log/sys/index', tabName: '操作日志' },
+                { name: '在线人数', value: [[${userOnlineCount != null ? userOnlineCount : 0}]], url: '/online/index', tabName: '在线人数' }
+            ];
+
+            var colors = ['#009688', '#1E9FFF', '#FFB800', '#FF5722', '#5FB878', '#01AAED'];
+
+            var option = {
+                title: {
+                    text: '系统数据统计',
+                    left: 'center',
+                    textStyle: {
+                        color: '#333',
+                        fontSize: 16,
+                        fontWeight: 'bold'
+                    }
+                },
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: {
+                        type: 'shadow'
+                    },
+                    formatter: function(params) {
+                        var data = params[0];
+                        return data.name + '<br/>数量: <strong>' + data.value + '</strong>';
+                    }
+                },
+                grid: {
+                    left: '3%',
+                    right: '4%',
+                    bottom: '3%',
+                    top: '15%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    data: statsData.map(function(item) { return item.name; }),
+                    axisLabel: {
+                        interval: 0,
+                        rotate: 0,
+                        textStyle: {
+                            fontSize: 12,
+                            color: '#666'
+                        }
+                    },
+                    axisLine: {
+                        lineStyle: {
+                            color: '#e2e2e2'
+                        }
+                    }
+                },
+                yAxis: {
+                    type: 'value',
+                    minInterval: 1,
+                    axisLine: {
+                        show: false
+                    },
+                    axisTick: {
+                        show: false
+                    },
+                    splitLine: {
+                        lineStyle: {
+                            color: '#f0f0f0'
+                        }
+                    },
+                    axisLabel: {
+                        textStyle: {
+                            color: '#999'
+                        }
+                    }
+                },
+                series: [{
+                    name: '统计数据',
+                    type: 'bar',
+                    barWidth: '50%',
+                    data: statsData.map(function(item, index) {
+                        return {
+                            value: item.value,
+                            itemStyle: {
+                                color: colors[index % colors.length],
+                                borderRadius: [4, 4, 0, 0]
+                            }
+                        };
+                    }),
+                    emphasis: {
+                        itemStyle: {
+                            shadowBlur: 10,
+                            shadowOffsetX: 0,
+                            shadowColor: 'rgba(0, 0, 0, 0.3)'
+                        }
+                    }
+                }]
+            };
+
+            statsChart.setOption(option);
+
+            statsChart.getZr().on('click', function(params) {
+                var pointInPixel = [params.offsetX, params.offsetY];
+                if (statsChart.containPixel('grid', pointInPixel)) {
+                    var pointInGrid = statsChart.convertFromPixel('grid', pointInPixel);
+                    var xIndex = Math.round(pointInGrid[0]);
+                    if (xIndex >= 0 && xIndex < statsData.length) {
+                        var clickedData = statsData[xIndex];
+                        if (clickedData && clickedData.url) {
+                            openTab(clickedData.tabName, clickedData.url);
+                        }
+                    }
+                }
+            });
+
+            window.addEventListener('resize', function() {
+                statsChart.resize();
+            });
+        }
     </script>
 </body>
 </html>
