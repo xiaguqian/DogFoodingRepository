@@ -10,6 +10,31 @@
     <link rel="stylesheet" th:href="@{/lib/layui/css/layui.css}">
     <link rel="stylesheet" th:href="@{/css/common.css}">
     <link rel="stylesheet" th:href="@{/css/animate.min.css}">
+    <style>
+        .chart-container {
+            background-color: #fff;
+            border-radius: 4px;
+            padding: 20px;
+            box-shadow: 0 1px 6px rgba(0,0,0,.1);
+        }
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 350px;
+            color: #999;
+        }
+        .empty-state i {
+            font-size: 60px;
+            color: #d9d9d9;
+            margin-bottom: 15px;
+        }
+        .empty-state p {
+            font-size: 14px;
+            margin: 0;
+        }
+    </style>
 </head>
 
 <body>
@@ -22,59 +47,8 @@
                 <div class="layui-col-md12">
                     <div class="layui-card">
                         <div class="layui-card-body">
-                            <div class="layui-carousel z-admin-carousel z-admin-backlog" lay-anim="" lay-indicator="inside" lay-arrow="none" style="width: 100%; height: 90px;">
-                                <div carousel-item="">
-                                    <ul class="layui-row layui-col-space10 layui-this">
-                                        <li class="layui-col-xs2">
-                                            <a href="#" onclick="openTab('用户管理', '/user/index')" class="z-admin-backlog-body">
-                                                <h3>用户数</h3>
-                                                <p>
-                                                    <cite th:text="${userCount}"></cite>
-                                                </p>
-                                            </a>
-                                        </li>
-                                        <li class="layui-col-xs2">
-                                            <a href="#" onclick="openTab('角色管理', '/role/index')" class="z-admin-backlog-body">
-                                                <h3>角色数</h3>
-                                                <p>
-                                                    <cite th:text="${roleCount}"></cite>
-                                                </p>
-                                            </a>
-                                        </li>
-                                        <li class="layui-col-xs2">
-                                            <a href="#" onclick="openTab('菜单管理', '/menu/index')" class="z-admin-backlog-body">
-                                                <h3>菜单数</h3>
-                                                <p>
-                                                    <cite th:text="${menuCount}"></cite>
-                                                </p>
-                                            </a>
-                                        </li>
-                                        <li class="layui-col-xs2">
-                                            <a href="#" onclick="openTab('登录日志', '/log/login/index')" class="z-admin-backlog-body">
-                                                <h3>登录日志</h3>
-                                                <p>
-                                                    <cite th:text="${loginLogCount}"></cite>
-                                                </p>
-                                            </a>
-                                        </li>
-                                        <li class="layui-col-xs2">
-                                            <a href="#" onclick="openTab('操作日志', '/log/sys/index')" class="z-admin-backlog-body">
-                                                <h3>操作日志</h3>
-                                                <p>
-                                                    <cite th:text="${sysLogCount}"></cite>
-                                                </p>
-                                            </a>
-                                        </li>
-                                        <li class="layui-col-xs2">
-                                            <a href="#" onclick="openTab('在线人数', '/online/index')" class="z-admin-backlog-body">
-                                                <h3>在线人数</h3>
-                                                <p>
-                                                    <cite th:text="${userOnlineCount}"></cite>
-                                                </p>
-                                            </a>
-                                        </li>
-                                    </ul>
-                                </div>
+                            <div class="chart-container">
+                                <div id="statsChart" style="width: 100%; height: 350px;"></div>
                             </div>
                         </div>
                     </div>
@@ -97,9 +71,132 @@
     <script type="application/javascript">
         layui.use('element', function(){
             layui.$("#main").css("width", (window.innerWidth - 100) +'px');
-            // 基于准备好的dom，初始化echarts实例
+            
+            var statsData = [
+                { name: '用户数', value: [[${userCount}]], url: '/user/index', title: '用户管理', color: '#5470c6' },
+                { name: '角色数', value: [[${roleCount}]], url: '/role/index', title: '角色管理', color: '#91cc75' },
+                { name: '菜单数', value: [[${menuCount}]], url: '/menu/index', title: '菜单管理', color: '#fac858' },
+                { name: '登录日志', value: [[${loginLogCount}]], url: '/log/login/index', title: '登录日志', color: '#ee6666' },
+                { name: '操作日志', value: [[${sysLogCount}]], url: '/log/sys/index', title: '操作日志', color: '#73c0de' },
+                { name: '在线人数', value: [[${userOnlineCount}]], url: '/online/index', title: '在线人数', color: '#3ba272' }
+            ];
+
+            var hasData = statsData.some(function(item) {
+                return item.value > 0;
+            });
+
+            var statsChartDom = document.getElementById('statsChart');
+            var statsChart = echarts.init(statsChartDom);
+
+            if (!hasData) {
+                statsChartDom.innerHTML = '<div class="empty-state"><i class="layui-icon layui-icon-chart"></i><p>暂无统计数据</p></div>';
+            } else {
+                var statsOption = {
+                    title: {
+                        text: '系统数据统计',
+                        left: 'center',
+                        textStyle: {
+                            fontSize: 16,
+                            fontWeight: 'bold',
+                            color: '#333'
+                        }
+                    },
+                    tooltip: {
+                        trigger: 'axis',
+                        axisPointer: {
+                            type: 'shadow'
+                        },
+                        formatter: function(params) {
+                            var data = params[0];
+                            return data.name + ': <strong>' + data.value + '</strong>';
+                        }
+                    },
+                    grid: {
+                        left: '3%',
+                        right: '4%',
+                        bottom: '3%',
+                        top: '15%',
+                        containLabel: true
+                    },
+                    xAxis: {
+                        type: 'category',
+                        data: statsData.map(function(item) { return item.name; }),
+                        axisLabel: {
+                            interval: 0,
+                            rotate: 0,
+                            fontSize: 12,
+                            color: '#666'
+                        },
+                        axisLine: {
+                            lineStyle: {
+                                color: '#ddd'
+                            }
+                        }
+                    },
+                    yAxis: {
+                        type: 'value',
+                        minInterval: 1,
+                        axisLabel: {
+                            color: '#666'
+                        },
+                        axisLine: {
+                            lineStyle: {
+                                color: '#ddd'
+                            }
+                        },
+                        splitLine: {
+                            lineStyle: {
+                                color: '#f0f0f0'
+                            }
+                        }
+                    },
+                    series: [{
+                        name: '数量',
+                        type: 'bar',
+                        barWidth: '50%',
+                        data: statsData.map(function(item, index) {
+                            return {
+                                value: item.value,
+                                itemStyle: {
+                                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                        { offset: 0, color: item.color },
+                                        { offset: 1, color: adjustColor(item.color, 30) }
+                                    ]),
+                                    borderRadius: [4, 4, 0, 0]
+                                }
+                            };
+                        }),
+                        emphasis: {
+                            itemStyle: {
+                                shadowBlur: 10,
+                                shadowOffsetX: 0,
+                                shadowColor: 'rgba(0, 0, 0, 0.3)'
+                            }
+                        },
+                        label: {
+                            show: true,
+                            position: 'top',
+                            color: '#666',
+                            fontSize: 12,
+                            fontWeight: 'bold'
+                        }
+                    }]
+                };
+
+                statsChart.setOption(statsOption);
+
+                statsChart.on('click', function(params) {
+                    var index = params.dataIndex;
+                    var item = statsData[index];
+                    if (item.url) {
+                        openTab(item.title, item.url);
+                    }
+                });
+
+                statsChartDom.style.cursor = 'pointer';
+            }
+
             var myChart = echarts.init(document.getElementById('main'));
-            // 指定图表的配置项和数据
             option = {
                 title: {
                     text: '近七天登陆次数统计图',
@@ -107,13 +204,13 @@
                 },
                 tooltip: {
                     trigger: 'axis',
-                    axisPointer: { // 坐标轴指示器，坐标轴触发有效
-                        type: 'none' // 默认为直线，可选为：'line' | 'shadow'
+                    axisPointer: {
+                        type: 'none'
                     }
                 },
                 xAxis: {
                     type: 'category',
-                    data:  getWeekList()
+                    data: getWeekList()
                 },
                 yAxis: {
                     type: 'value'
@@ -125,10 +222,30 @@
             };
             layui.$.get('/weekLoginCount', function (data) {
                 option.series[0].data = data;
-                // 使用刚指定的配置项和数据显示图表。
                 myChart.setOption(option);
             });
+
+            window.addEventListener('resize', function() {
+                statsChart.resize();
+                myChart.resize();
+            });
         });
+
+        function adjustColor(color, amount) {
+            var hex = color.replace('#', '');
+            var r = parseInt(hex.substring(0, 2), 16);
+            var g = parseInt(hex.substring(2, 4), 16);
+            var b = parseInt(hex.substring(4, 6), 16);
+            
+            r = Math.min(255, Math.max(0, r + amount));
+            g = Math.min(255, Math.max(0, g + amount));
+            b = Math.min(255, Math.max(0, b + amount));
+            
+            return '#' + 
+                r.toString(16).padStart(2, '0') + 
+                g.toString(16).padStart(2, '0') + 
+                b.toString(16).padStart(2, '0');
+        }
     </script>
 </body>
 </html>
